@@ -1,7 +1,7 @@
 //Program made by: Jake Garza
 //Program purpose: To generate relaxing animations
 //School: Waterford Mott High School
-//Date started: 10/30/16
+//Date started: 10/30/16 (Non particles game started on this date)
 
 import java.awt.BasicStroke;
 import java.awt.Canvas;
@@ -20,7 +20,6 @@ import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.UIManager;
@@ -35,6 +34,8 @@ public class Main {
     public static BufferedImage background = null;
     public static int windowWidth = 0;
     public static int windowHeight = 0;
+
+    public static boolean fullScreen = false;
     
     //FPS and rendering variables
     public static long targetFPS = 60;
@@ -78,10 +79,10 @@ public class Main {
 
         //Rectangle to hold dimensions of screen
         Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-        
+
         //Store screenshot in buffered image
         BufferedImage screenImage = robot.createScreenCapture(screenRect);
-        
+
         //Return screenshot
         return screenImage;
     }
@@ -111,7 +112,6 @@ public class Main {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             
             //Get user settings
-            //numP = particleNumber;
             ParticleSettings.setNumP(particleNumber);
             Particle.setSize(particleSize);
             Main.targetFPS = targetFPS;
@@ -138,8 +138,16 @@ public class Main {
         
         frame = new JFrame();
         frame.getContentPane().setBackground(Color.BLACK);
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-        frame.setUndecorated(true);
+        if (fullScreen) {
+            frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+            frame.setUndecorated(true);
+        }
+        else {
+            frame.setSize(400, 400);
+        }
+
+
+
         frame.setTitle("Particles");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
@@ -147,9 +155,8 @@ public class Main {
             public void run() {
                 for (;;) { //Forever scroll through colors
                     for (float i = 0; i < 1; i+=0.001) {
-                        //try {Thread.sleep(Main.colorScrollDelay);} catch (Exception e) {}
                     	try {Thread.sleep(ParticleSettings.getColorScrollDelay());} catch (Exception e) {}
-                        //color = Color.getHSBColor(i, 1, 1);
+
                     	ParticleSettings.setColor(Color.getHSBColor(i, 1, 1));
                     }
                 }
@@ -216,7 +223,6 @@ public class Main {
                 if (ParticleSettings.getColorScrollDelay() < 1) ParticleSettings.setColorScrollDelay(1);
                 
                 //Set particle colors
-                //g.setColor(color);
                 g.setColor(ParticleSettings.getColor());
                 
                 //Loop through particle array and render them all
@@ -228,7 +234,6 @@ public class Main {
                         
                         if (ParticleSettings.particleTrails()) {
                         	g.setStroke(new BasicStroke(Particle.getSize()/2));
-                        	//g.setColor(ParticleSettings.getColor().darker());
                         	
                         	//Don't draw line if off screen
                             if (p.x > 0 && p.x < windowWidth && p.y > 0 && p.y < windowHeight) {
@@ -237,26 +242,8 @@ public class Main {
                             
                             //After reset the stroke and color
                             g.setStroke(defaultStroke);
-                            //g.setColor(ParticleSettings.getColor());
                         }
-                        
-                        
-                        //Render ghost particles / particle trails
-                        /*if (ParticleSettings.particleTrails()) {
-                            for (int j = 0; j < 2; j++) {
-                                g.setColor(ParticleSettings.getColor().darker().darker());
-                                
-                                double multiplier = Math.abs(p.velocityX + p.velocityY)*1.7;
-                                
-                                //Render each one a bit more behind than the last
-                                //Get where x and y are going to be by adding the x and y by their velocity, get angle and draw behind it
-                                int x = (int)(p.x + Math.cos(Math.atan2(p.y-(p.y+p.velocityY), p.x-(p.x+p.velocityX))) * j * multiplier);
-                                int y = (int)(p.y + Math.sin(Math.atan2(p.y-(p.y+p.velocityY), p.x-(p.x+p.velocityX))) * j * multiplier);
-                                
-                                g.fillRect(x, y, Particle.getSize(), Particle.getSize());
-                            }
-                        }*/
-                        
+
                         //Draw non ghost particle last so it is on top
                         g.setColor(ParticleSettings.getColor());
                         g.fillRect((int)p.x, (int)p.y, Particle.getSize(), Particle.getSize());
@@ -330,7 +317,7 @@ public class Main {
                 	
                 	if (totalFrames % (Main.targetFPS*40) == 0) {
                 		int connect = genRand(1, 0);
-                		//clearNextFrame = true;
+
                 		ParticleSettings.clearNextFrame(true);
                 		if (connect == 0) ParticleSettings.setConnectParticles(false);//connectParticles = false;
                 		else ParticleSettings.setConnectParticles(true);//connectParticles = true;

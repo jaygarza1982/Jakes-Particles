@@ -90,7 +90,7 @@ public class Updater {
 
 	//Returns true if the updated SHA and running SHA DO NOT equal each other
 	public static boolean isUpdate() throws Exception {
-		String fileOnServerSHA = SHA1(new URL("http://www.motths.net/Particles.jar"));
+		String fileOnServerSHA = SHA1(new URL("https://github.com/jaygarza1982/Jakes-Particles/raw/master/bin/Particles.jar"));
 		String runningFileSHA = SHA1(currentPath());
 		
 		return !fileOnServerSHA.equals(runningFileSHA);

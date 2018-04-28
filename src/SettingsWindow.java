@@ -93,28 +93,21 @@ public class SettingsWindow extends JFrame {
 					Particle.setSize(particleSize);
 					
 					//Set color scroll delay
-					//Main.colorScrollDelay = colorScrollDelay;
 					ParticleSettings.setColorScrollDelay(colorScrollDelay);
 					
 					//Set cursor to showing or not
-					//Main.showCursor = showCursor;
 					ParticleSettings.setCursorShowing(showCursor);
 					
 					//Set particle attraction or not
-					//Main.attraction = particleAttraction;
 					ParticleSettings.setAttraction(particleAttraction);
 					
 					//Draw line between particles or not
-					//Main.connectParticles = connectParticles;
 					ParticleSettings.setConnectParticles(connectParticles);
 					
-					//Main.loopIfOffScreen = loopIfOffScreen;
 					ParticleSettings.setLoopIfOffScreen(loopIfOffScreen);
 					
-					//Main.tripMode = tripMode;
 					ParticleSettings.setTripMode(tripMode);
 					
-					//Main.particleTrails = particleTrails;
 					ParticleSettings.setParticleTrails(particleTrails);
 					
 					//Close this window without closing program
@@ -122,7 +115,6 @@ public class SettingsWindow extends JFrame {
 					
 				} catch (Exception e) {
 					lblError.setText(e.getMessage());
-					//JOptionPane.showMessageDialog(null, e.getMessage());
 				}
 			}
 		});
@@ -134,7 +126,7 @@ public class SettingsWindow extends JFrame {
 		contentPane.add(lblColorScrollDelay);
 		
 		txtColorScrollDelay = new JTextField();
-		txtColorScrollDelay.setText("15");
+		txtColorScrollDelay.setText(ParticleSettings.getColorScrollDelay()+"");
 		txtColorScrollDelay.setColumns(10);
 		txtColorScrollDelay.setBounds(125, 58, 105, 20);
 		contentPane.add(txtColorScrollDelay);
