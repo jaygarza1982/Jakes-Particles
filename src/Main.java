@@ -20,6 +20,8 @@ import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Stack;
+import java.util.concurrent.CopyOnWriteArrayList;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.UIManager;
@@ -46,6 +48,18 @@ public class Main {
     public static long lastTime = currentTime;
     public static long totalTime = 0;
     public static long totalFrames = 0;
+    
+    public static String playerName = "";
+
+    public static boolean isMultiplayer = false;
+    public static boolean isHosting = false;
+    public static Stack<String> serverInfoStack = new Stack<String>();
+    public static String IP;
+    public static int TCPPort = 4447;
+    public static int UDPPort = 4447;
+    public static int UDPMulitcastPort = 4446;
+    
+    public static CopyOnWriteArrayList<TCPClientHandler> clients = new CopyOnWriteArrayList<TCPClientHandler>();
     
     public static int genRand(int max, int min) {
         int rang = (max - min) + 1;
@@ -92,7 +106,7 @@ public class Main {
         particles.clear(); //Clear the array first
         
         for (int i = 0; i < p; i++) {
-            particles.add(new Particle(genRand(frame.getWidth(), 0), genRand(frame.getHeight(), 0), 0, 0, (int)i));
+            particles.add(new Particle(genRand(frame.getWidth(), 0), genRand(frame.getHeight(), 0), 0, 0, i));
         }
     }
     
@@ -102,7 +116,6 @@ public class Main {
     	if (ParticleSettings.isDemoMode()) {
     		particleNumber = 3;
     		particleSize = 1;
-    		//connectParticles = true;
     		ParticleSettings.setConnectParticles(true);
     		ParticleSettings.setTripMode(true);
     		ParticleSettings.setDistanceModifier(-100);
@@ -122,8 +135,7 @@ public class Main {
                 background = screenShot();
             }
             
-            
-            //if (numP <= 0) numP = 1;
+
             if (ParticleSettings.getNumP() <= 0) ParticleSettings.setNumP(1);
             if (Particle.getSize() <= 0) Particle.setSize(1);
             
@@ -151,6 +163,7 @@ public class Main {
         frame.setTitle("Particles");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
+        
         Thread colorThread = new Thread(new Runnable() {
             public void run() {
                 for (;;) { //Forever scroll through colors
@@ -163,6 +176,38 @@ public class Main {
             }
         });
         colorThread.start();
+        
+        //If we are in multiplayer and are not hosting, prefetch data from server
+        if (isMultiplayer && !isHosting) {
+        	Thread serverInfoGetter = new Thread(new Runnable() {
+        		public void run() {
+        			while (true) {
+        				try {
+        					//The dummy bytes are because the last chars of the string sometimes corrupt
+        					byte dummy[] = new byte[64];
+        					
+        					Color currentColor = ParticleSettings.getColor();
+        					int r = currentColor.getRed();
+        					int g = currentColor.getGreen();
+        					int b = currentColor.getBlue();
+
+        					int distMod = ParticleSettings.getDistanceModifier();
+
+                            //Send server our information and get a response on what the next frame should look like
+        					String info = UDPHelper.getGameInfoFromServer(mouseX + " " + mouseY + " " + playerName + " " + r + " " + g + " " + b + " " + distMod + new String(dummy));
+        					serverInfoStack.add(info);
+        					//System.out.println(info);
+
+                            //Run twice as fast as our FPS
+        					Thread.sleep((1000/Main.targetFPS) / 2);
+        				} catch (Exception e) {
+        					e.printStackTrace();
+        				}
+        			}
+        		}
+        	});
+        	serverInfoGetter.start();
+        }
         
         frame.setAlwaysOnTop(true);
         frame.setVisible(true);
@@ -181,91 +226,120 @@ public class Main {
         
         java.util.Timer timer = new java.util.Timer();
         timer.scheduleAtFixedRate(new java.util.TimerTask() {
-            public void run() {
-                lastTime = currentTime;
-                currentTime = System.currentTimeMillis();
-                
-                totalTime += currentTime - lastTime;
-                
-                //When a second passes
-                if (totalTime > 1000) {
-                    totalTime -= 1000;
-                    fps = frames;
-                    frames = 0;
-                }
-                frames++;
-                
-                //Add one to amount of frames that have passed
-                totalFrames++;
-                
-                Graphics2D g = (Graphics2D)bs.getDrawGraphics();
-                BasicStroke defaultStroke = (BasicStroke)g.getStroke();
-                g.setColor(Color.BLACK);
-                
-                //Clear the last frame if not in trip mode
-                if (!ParticleSettings.isTripMode() || ParticleSettings.clearNextFrame()) {
-                    g.clearRect(0, 0, frame.getWidth(), frame.getHeight());
-                    ParticleSettings.clearNextFrame(false);
-                }
-                    
-                
-                //If background isn't null, we took a screenshot. We will draw it
-                if (background != null && !ParticleSettings.isTripMode())
-                    g.drawImage(background, 0, 0, null);
-                
-                //Check if the distance modifier is bigger or smaller than it should be
-                if (ParticleSettings.getDistanceModifier() > ParticleSettings.getMaxDistMod())
-                	ParticleSettings.setDistanceModifier(ParticleSettings.getMaxDistMod());
-                if (ParticleSettings.getDistanceModifier() < -ParticleSettings.getMaxDistMod())
-                	ParticleSettings.setDistanceModifier(-ParticleSettings.getMaxDistMod());
-                
-                //Check if the color scroll delay will give user a seizure
-                if (ParticleSettings.getColorScrollDelay() < 1) ParticleSettings.setColorScrollDelay(1);
-                
-                //Set particle colors
-                g.setColor(ParticleSettings.getColor());
-                
-                //Loop through particle array and render them all
-                for (int i = 0; i < particles.size(); i++) {
-                    try {
-                        //Get particle from array
-                        Particle p = particles.get(i);
-                        
-                        
-                        if (ParticleSettings.particleTrails()) {
-                        	g.setStroke(new BasicStroke(Particle.getSize()/2));
-                        	
-                        	//Don't draw line if off screen
-                            if (p.x > 0 && p.x < windowWidth && p.y > 0 && p.y < windowHeight) {
-                            	 g.drawLine((int)p.x+Particle.getSize()/2, (int)p.y+Particle.getSize()/2, (int)Math.abs(p.x - p.velocityX*4), (int)Math.abs(p.y - p.velocityY*4));
-                            }
-                            
-                            //After reset the stroke and color
-                            g.setStroke(defaultStroke);
-                        }
+        	public void run() {
+        		lastTime = currentTime;
+        		currentTime = System.currentTimeMillis();
 
-                        //Draw non ghost particle last so it is on top
-                        g.setColor(ParticleSettings.getColor());
-                        g.fillRect((int)p.x, (int)p.y, Particle.getSize(), Particle.getSize());
-                        
-                        //If connect particles is true, draw a line between particles
-                        if (ParticleSettings.connectingParticles()) {
-                            Particle p2 = null;
-                            
-                            //If i isn't 0, set p2 to the previous index, if it is, set p2 to the last index
-                            if (i != 0)
-                                p2 = particles.get(i-1);
-                            else
-                                p2 = particles.get(particles.size()-1);
-                            
-                            g.drawLine((int)p.x+(Particle.getSize()/2), (int)p.y+(Particle.getSize()/2), (int)p2.x+(Particle.getSize()/2), (int)p2.y+(Particle.getSize()/2));
-                        }
-                        
-                        //Attract particle to mouse and calculate velocity in integrate method
-                        if (ParticleSettings.isAttraction()) p.attract(mouseX-(Particle.getSize()/2), mouseY-(Particle.getSize()/2));
-                        p.integrate(); 
-                    } catch (Exception e) {}
-                }
+        		totalTime += currentTime - lastTime;
+
+        		//When a second passes
+        		if (totalTime > 1000) {
+        			totalTime -= 1000;
+        			fps = frames;
+        			frames = 0;
+        		}
+        		frames++;
+
+        		//Add one to amount of frames that have passed
+        		totalFrames++;
+
+        		Graphics2D g = (Graphics2D)bs.getDrawGraphics();
+        		BasicStroke defaultStroke = (BasicStroke)g.getStroke();
+        		g.setColor(Color.BLACK);
+
+        		//Clear the last frame if not in trip mode
+        		if (!ParticleSettings.isTripMode() || ParticleSettings.clearNextFrame()) {
+        			g.clearRect(0, 0, frame.getWidth(), frame.getHeight());
+        			ParticleSettings.clearNextFrame(false);
+        		}
+
+        		//If background isn't null, we took a screenshot. We will draw it
+        		if (background != null && !ParticleSettings.isTripMode())
+        			g.drawImage(background, 0, 0, null);
+
+        		//Set particle colors
+        		g.setColor(ParticleSettings.getColor());
+
+        		//Loop through particle array and render them all
+        		if (!isMultiplayer) {
+        			for (int i = 0; i < particles.size(); i++) {
+        				try {
+        					//Get particle from array
+        					Particle p = particles.get(i);
+
+
+        					if (ParticleSettings.particleTrails()) {
+        						g.setStroke(new BasicStroke(Particle.getSize()/2));
+
+        						//Don't draw line if off screen
+        						if (p.x > 0 && p.x < windowWidth && p.y > 0 && p.y < windowHeight) {
+        							g.drawLine((int)p.x+Particle.getSize()/2, (int)p.y+Particle.getSize()/2, (int)Math.abs(p.x - p.velocityX*4), (int)Math.abs(p.y - p.velocityY*4));
+        						}
+
+        						//After reset the stroke and color
+        						g.setStroke(defaultStroke);
+        					}
+
+        					//Draw particles
+        					g.setColor(ParticleSettings.getColor());
+        					g.fillRect((int)p.x, (int)p.y, Particle.getSize(), Particle.getSize());
+
+
+        					//If connect particles is true, draw a line between particles
+        					if (ParticleSettings.connectingParticles()) {
+        						Particle p2 = null;
+
+        						//If i isn't 0, set p2 to the previous index, if it is, set p2 to the last index
+        						if (i != 0)
+        							p2 = particles.get(i-1);
+        						else
+        							p2 = particles.get(particles.size()-1);
+
+        						g.drawLine((int)p.x+(Particle.getSize()/2), (int)p.y+(Particle.getSize()/2), (int)p2.x+(Particle.getSize()/2), (int)p2.y+(Particle.getSize()/2));
+        					}
+
+        					//Attract particle to mouse and calculate velocity in integrate method
+        					if (ParticleSettings.isAttraction()) p.attract(mouseX-(Particle.getSize()/2), mouseY-(Particle.getSize()/2));
+        					p.integrate(); 
+        				} catch (Exception e) {}
+        			}
+        		}
+        		//If we are in multiplayer and not hosting, use the info from server to draw
+        		else if (isMultiplayer && !isHosting) {
+        		    String toDraw = "";
+        			try {
+                        if (!serverInfoStack.empty())
+        				toDraw = serverInfoStack.pop();
+        				
+        				String splitByLine[] = toDraw.split("\n");
+
+        				//Color of other clients
+        				Color clientColor = new Color(255, 255, 255);
+        				for (int i = 0; i < splitByLine.length; i++) {
+        					String line = splitByLine[i];
+        					if (line.contains("COLOR:")) {
+        						line = line.replace("COLOR:", "");
+        						
+        						String lineColors[] = line.split(" ");
+        						int red = Integer.parseInt(lineColors[0]);
+                				int green = Integer.parseInt(lineColors[1]);
+                				int blue = Integer.parseInt(lineColors[2]);
+
+                                clientColor = new Color(red, green, blue);
+                                g.setColor(clientColor);
+        					}
+        					else {
+        						int x = Integer.parseInt(line.split(" ")[0]);
+            					int y = Integer.parseInt(line.split(" ")[1]);
+
+            					g.fillRect(x, y, 3, 3);
+        					}
+        				}
+        			} catch (Exception e) {
+        				e.printStackTrace();
+        			}
+        		}
+                
                 
                 //Set text colors
                 g.setColor(Color.WHITE);
@@ -332,10 +406,7 @@ public class Main {
                 		ParticleSettings.setCursorShowing(!ParticleSettings.isCursorShowing());
                 		hideCursor();
                 	}
-
-
                 }
-
 
                 //Set cursor setting each frame
                 if (ParticleSettings.isCursorShowing())
@@ -343,7 +414,6 @@ public class Main {
                 else
                 	hideCursor();
 
-                
                 //Dispose graphics object and show what we just drew
                 g.dispose();
                 bs.show();

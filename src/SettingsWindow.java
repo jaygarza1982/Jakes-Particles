@@ -168,5 +168,9 @@ public class SettingsWindow extends JFrame {
 		cbTrails.setSelected(ParticleSettings.particleTrails());
 		cbTrails.setBounds(6, 210, 115, 23);
 		contentPane.add(cbTrails);
+		
+		JLabel lblSomeFeaturesMay = new JLabel("Some features may not work in multiplayer.");
+		lblSomeFeaturesMay.setBounds(16, 318, 234, 14);
+		contentPane.add(lblSomeFeaturesMay);
 	}
 }

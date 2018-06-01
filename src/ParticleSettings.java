@@ -55,7 +55,9 @@ public class ParticleSettings {
     public static int getColorScrollDelay() { return colorScrollDelay; }
     public static Color getColor() { return color; }
     
-    public static void incDistMod(int i) { distanceModifier += i; }
+    public static void incDistMod(int i) {
+        setDistanceModifier(getDistanceModifier() + i);
+    }
     
     public static void incrementCircle(double i) { 
     	circleInc += i;
@@ -64,11 +66,21 @@ public class ParticleSettings {
     
     public static void setDistanceModifier(int d) {
     	distanceModifier = d;
+
+        //Check if the distance modifier is bigger or smaller than it should be
+        if (getDistanceModifier() > getMaxDistMod())
+            setDistanceModifier(getMaxDistMod());
+        if (ParticleSettings.getDistanceModifier() < -getMaxDistMod())
+            setDistanceModifier(-getMaxDistMod());
     }
     
     public static void setNumP(int p) { numP = p; }
-    public static void setMaxDistMod(int i) { maxDistMod = i; }
-    public static void setColorScrollDelay(int i) { colorScrollDelay = i; }
+    public static void setColorScrollDelay(int i) {
+        colorScrollDelay = i;
+
+        //Check if the color scroll delay will give user a seizure
+        if (getColorScrollDelay() < 1) setColorScrollDelay(1);
+    }
     public static void setColor(Color c) { color = c; }
     
 }
