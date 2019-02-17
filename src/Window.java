@@ -41,6 +41,8 @@ public class Window extends JFrame {
 	private JTextField txtJoinName;
 
 	private ServerSocket serverSocket;
+	private JLabel lblPort;
+	private JTextField txtPort;
 
 	/**
 	 * Launch the application.
@@ -73,7 +75,7 @@ public class Window extends JFrame {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception e) {}
 		setTitle("Jake Garza's Particle Program");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 547, 385);
+		setBounds(100, 100, 547, 429);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
@@ -192,46 +194,13 @@ public class Window extends JFrame {
 		list.addMouseListener(new MouseAdapter() {
 		    public void mouseClicked(MouseEvent evt) {
 		        if (evt.getClickCount() == 2) {
-		           
 		            String ip = list.getSelectedValue().replace("/", "");
 		            ip = ip.replace(" ", "");
 		            
-		            //TODO: Send TCP message to the server containing the player name
-                    try {
-                    	Socket socket = new Socket(ip, Main.TCPPort);
-                        PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
-                        final BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        pw.println("NAME:" + txtJoinName.getText());
-                        Main.playerName = txtJoinName.getText();
-                        Main.isMultiplayer = true;
-                        Main.isHosting = false;
-                        Main.IP = ip;
-
-                        //TODO: Uncomment this in release
-                        Main.fullScreen = cbFullScreen.isSelected();
-
-                        Main.startParticles(0, Integer.parseInt(txtParticleSize.getText()), 30, cbUseScreenBG.isSelected());
-                        
-                        //Start a new thread to let the server know we are still here
-                        Thread serverConnectionThread = new Thread(new Runnable() {
-                        	public void run() {
-                        		 try {
-									br.readLine();
-								} catch (IOException e) {
-									e.printStackTrace();
-								}
-                        	}
-                        });
-                        serverConnectionThread.start();
-                        
-                        frame.dispose();
-                       
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        JOptionPane.showMessageDialog(null, e.getMessage());
-                    }
-
-		            //System.out.println(ip);
+		            int port = Integer.parseInt(txtPort.getText());
+		            Main.TCPPort = port;
+		            Main.UDPPort = port;
+		            joinServer(ip, port);
 		        }
 		    }
 		});
@@ -283,5 +252,69 @@ public class Window extends JFrame {
 		JLabel lblPlayerName = new JLabel("Player Name");
 		lblPlayerName.setBounds(306, 204, 84, 14);
 		contentPane.add(lblPlayerName);
+		
+		JButton btnJoinCustom = new JButton("Join Custom");
+		btnJoinCustom.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String ip = JOptionPane.showInputDialog("Server IP", "localhost");
+				int port = Integer.parseInt(JOptionPane.showInputDialog("Server port", Main.TCPPort+""));
+				Main.TCPPort = port;
+				Main.UDPPort = port;
+				
+				joinServer(ip, port);
+			}
+		});
+		btnJoinCustom.setBounds(386, 142, 135, 23);
+		contentPane.add(btnJoinCustom);
+		
+		lblPort = new JLabel("Port:");
+		lblPort.setBounds(155, 365, 48, 14);
+		contentPane.add(lblPort);
+		
+		txtPort = new JTextField();
+		txtPort.setText(Main.TCPPort+"");
+		txtPort.setBounds(213, 362, 96, 20);
+		contentPane.add(txtPort);
+		txtPort.setColumns(10);
+	}
+	
+	private void joinServer(String ip, int port) {
+		//TODO: Send TCP message to the server containing the player name
+        try {
+        	@SuppressWarnings("resource")
+			Socket socket = new Socket(ip, Main.TCPPort);
+            PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
+            final BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            pw.println("NAME:" + txtJoinName.getText());
+            Main.playerName = txtJoinName.getText();
+            Main.isMultiplayer = true;
+            Main.isHosting = false;
+            Main.IP = ip;
+
+            //TODO: Uncomment this in release
+            Main.fullScreen = cbFullScreen.isSelected();
+
+            Main.startParticles(0, Integer.parseInt(txtParticleSize.getText()), 30, cbUseScreenBG.isSelected());
+            
+            //Start a new thread to let the server know we are still here
+            Thread serverConnectionThread = new Thread(new Runnable() {
+            	public void run() {
+            		 try {
+						br.readLine();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+            	}
+            });
+            serverConnectionThread.start();
+            
+            frame.dispose();
+           
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, e.getMessage());
+        }
+
+        //System.out.println(ip);
 	}
 }
